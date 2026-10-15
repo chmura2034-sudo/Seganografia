@@ -1,19 +1,11 @@
-"""
-Aplikacja do steganografii: każda metoda = osobna zakładka,
-a w niej podzakładki Kodowanie / Dekodowanie.
-
-Uruchomienie:  python stego_app.py
-"""
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
-import LSC   # <-- plik z funkcjami (LSC.py w tym samym folderze)
+import LSC 
 
 
-# ---------------------------------------------------------------
-#  Podzakładki
-# ---------------------------------------------------------------
+
 class BaseSubTab(ttk.Frame):
     """Wspólne elementy: wybór nośnika, tryb przesunięcia, wynik."""
 
@@ -126,9 +118,7 @@ class DecodeTab(BaseSubTab):
             messagebox.showerror("Nieoczekiwany błąd", str(e))
 
 
-# ---------------------------------------------------------------
-#  Zakładka metody = notebook z Kodowaniem i Dekodowaniem
-# ---------------------------------------------------------------
+
 class MethodTab(ttk.Frame):
     def __init__(self, parent, encode_cls=EncodeTab, decode_cls=DecodeTab):
         super().__init__(parent)
@@ -138,9 +128,6 @@ class MethodTab(ttk.Frame):
         inner.add(decode_cls(inner), text="Dekodowanie")
 
 
-# ---------------------------------------------------------------
-#  Aplikacja
-# ---------------------------------------------------------------
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -150,7 +137,6 @@ class App(tk.Tk):
         notebook = ttk.Notebook(self)
         notebook.pack(fill="both", expand=True, padx=8, pady=8)
 
-        # nazwa zakładki -> klasa zakładki; kolejne metody dopisujesz tutaj
         METHODS = {
             "LSC": MethodTab,
         }
