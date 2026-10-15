@@ -5,8 +5,8 @@ from reportlab.lib.units import cm
 import pymupdf
 import random
 
-DELTA = 1
-
+DELTA = 10
+LEADING = 12
 
 def get_PDF_Text(file_path):
     every_lines = []
@@ -104,44 +104,62 @@ def encode(file_path, secret_message, shift_options, output_file_path):
 
     create_pdf_with_hidden_message(input_lines, secret_bits, output_file_path, shift_options)
 
+def is_carrier(i, shift_options):
+    if shift_options == 0:
+        return i % 2 == 0
+    return i % 5 not in (0, 4)
+
 
 def decode(file_path, shift_options):
     doc = pymupdf.open(file_path)
-    page_height = A4[1]
 
-    all_lines = []
+    pages = []
+    idx = 0
     for page in doc:
-        lines_on_page = []
+        raw = []
         for block in page.get_text("dict")["blocks"]:
             for line in block.get("lines", []):
                 text = "".join(span["text"] for span in line["spans"])
                 if not text.strip():
                     continue
-                y_top = line["spans"][0]["origin"][1]
-                y_bottom = page_height - y_top
-                lines_on_page.append((y_top, text, y_bottom))
+                y = line["spans"][0]["origin"][1]  
+                raw.append((y, text))
 
-        lines_on_page.sort(key=lambda t: t[0])
-        all_lines.extend(lines_on_page)
+        raw.sort(key=lambda t: t[0]) 
 
-    nominal_positions = compute_nominal_positions(len(all_lines), page_height)
+        page_lines = []
+        for y, _ in raw:
+            page_lines.append((idx, y))
+            idx += 1
+        pages.append(page_lines)
 
     all_bits = []
-    for i, (_, text, y_actual) in enumerate(all_lines):
-        y_nominal = nominal_positions[i]
+    for page_lines in pages:
+        anchors = [(i, y) for i, y in page_lines if not is_carrier(i, shift_options)]
 
-        use_bit = False
-        if shift_options == 0:
-            use_bit = (i % 2 == 0)
-        elif shift_options == 1:
-            use_bit = (i % 5 not in (0, 4))
+        for i, y in page_lines:
+            if not is_carrier(i, shift_options):
+                continue
 
-        if use_bit:
-            all_bits.append(1 if y_actual > y_nominal else 0)
+            prev = [a for a in anchors if a[0] < i]
+            nxt = [a for a in anchors if a[0] > i]
+            p = prev[-1] if prev else None   
+            n = nxt[0] if nxt else None     
 
-    secret_message = bits_to_string(all_bits)
+            if p and n:
+                # interpolacja między kotwicami
+                y_nominal = p[1] + (n[1] - p[1]) * (i - p[0]) / (n[0] - p[0])
+            elif p:
+                y_nominal = p[1] + (i - p[0]) * LEADING
+            elif n:
+                y_nominal = n[1] - (n[0] - i) * LEADING
+            else:
+                all_bits.append(0) 
+                continue
 
-    return secret_message
+            all_bits.append(1 if y < y_nominal else 0)
+
+    return bits_to_string(all_bits)
 
 
 
