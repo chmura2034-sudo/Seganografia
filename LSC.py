@@ -141,7 +141,6 @@ def decode(file_path, shift_options):
 
     secret_message = bits_to_string(all_bits)
 
-    print("Hidden message:", secret_message)
     return secret_message
 
 
