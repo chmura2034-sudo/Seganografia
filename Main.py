@@ -2,7 +2,8 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
-import LSC 
+import LSC
+import Roy
 
 
 
@@ -14,7 +15,8 @@ class BaseSubTab(ttk.Frame):
         self.columnconfigure(0, weight=1)
         self._row = 0
 
-        ttk.Label(self, text="Nośnik (plik PDF)").grid(row=self._next(), column=0, sticky="w")
+        self.carrier_label = ttk.Label(self, text="Nośnik (plik PDF)")
+        self.carrier_label.grid(row=self._next(), column=0, sticky="w")
         path_frame = ttk.Frame(self)
         path_frame.grid(row=self._next(), column=0, sticky="ew", pady=(0, 8))
         path_frame.columnconfigure(0, weight=1)
@@ -118,6 +120,74 @@ class DecodeTab(BaseSubTab):
             messagebox.showerror("Nieoczekiwany błąd", str(e))
 
 
+class DocxSubTab(BaseSubTab):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.carrier_label.configure(text="Nośnik (plik DOCX)")
+
+    def choose_carrier(self):
+        path = filedialog.askopenfilename(filetypes=[("Word", "*.docx")])
+        if path:
+            self.carrier.delete(0, "end")
+            self.carrier.insert(0, path)
+
+    def get_carrier(self):
+        carrier = self.carrier.get().strip()
+        if not carrier:
+            messagebox.showwarning("Brak pliku", "Wybierz plik DOCX.")
+            return None
+        return carrier
+
+
+class RoyEncodeTab(DocxSubTab):
+    def __init__(self, parent):
+        super().__init__(parent)
+        ttk.Label(self, text="Wiadomość").grid(row=self._next(), column=0, sticky="w")
+        self.message = tk.Text(self, height=3, wrap="word")
+        self.message.grid(row=self._next(), column=0, sticky="ew", pady=(0, 8))
+        ttk.Button(self, text="Zakoduj", command=self.run).grid(
+            row=self._next(), column=0, sticky="w")
+        self.build_result()
+
+    def run(self):
+        carrier = self.get_carrier()
+        if carrier is None:
+            return
+        message = self.message.get("1.0", "end-1c")
+        if not message:
+            messagebox.showwarning("Brak wiadomości", "Wpisz wiadomość.")
+            return
+        out = filedialog.asksaveasfilename(
+            defaultextension=".docx", filetypes=[("Word", "*.docx")])
+        if not out:
+            return
+        try:
+            Roy.encode(carrier, message, out)
+            self.set_result(f"Zapisano: {out}")
+        except ValueError as e:
+            messagebox.showerror("Błąd", str(e))
+        except Exception as e:
+            messagebox.showerror("Nieoczekiwany błąd", str(e))
+
+
+class RoyDecodeTab(DocxSubTab):
+    def __init__(self, parent):
+        super().__init__(parent)
+        ttk.Button(self, text="Odkoduj", command=self.run).grid(
+            row=self._next(), column=0, sticky="w")
+        self.build_result("Odczytana wiadomość")
+
+    def run(self):
+        carrier = self.get_carrier()
+        if carrier is None:
+            return
+        try:
+            self.set_result(Roy.decode(carrier))
+        except ValueError as e:
+            messagebox.showerror("Błąd", str(e))
+        except Exception as e:
+            messagebox.showerror("Nieoczekiwany błąd", str(e))
+
 
 class MethodTab(ttk.Frame):
     def __init__(self, parent, encode_cls=EncodeTab, decode_cls=DecodeTab):
@@ -126,6 +196,11 @@ class MethodTab(ttk.Frame):
         inner.pack(fill="both", expand=True)
         inner.add(encode_cls(inner), text="Kodowanie")
         inner.add(decode_cls(inner), text="Dekodowanie")
+
+
+class RoyMethodTab(MethodTab):
+    def __init__(self, parent):
+        super().__init__(parent, RoyEncodeTab, RoyDecodeTab)
 
 
 class App(tk.Tk):
@@ -139,6 +214,7 @@ class App(tk.Tk):
 
         METHODS = {
             "LSC": MethodTab,
+            "Roy i Manasmita": RoyMethodTab,
         }
         for name, cls in METHODS.items():
             notebook.add(cls(notebook), text=name)
