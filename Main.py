@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
+import os
 import LSC
 import Roy
 import SOTE 
@@ -268,6 +269,84 @@ class SOTEMethodTab(MethodTab):
         super().__init__(parent, SOTEEncodeTab, SOTEDecodeTab)
 
 
+# ── Pomoc (ikona + dymek) ─────────────────────────────────────────────────────
+
+HELP_TEXTS = {
+    "LSC": (
+        "LSC – ukrywanie wiadomości w pliku PDF\n\n"
+        "Kodowanie:\n"
+        "1. Wybierz plik PDF (nośnik).\n"
+        "2. Wpisz wiadomość (tylko znaki ASCII).\n"
+        "3. Wybierz tryb przesunięcia (0 lub 1).\n"
+        "4. Kliknij „Zakoduj” i wskaż miejsce zapisu.\n\n"
+        "Dekodowanie:\n"
+        "Wybierz PDF, ustaw ten sam tryb przesunięcia\n"
+        "co przy kodowaniu i kliknij „Odkoduj”."
+    ),
+    "Roy i Manasmita": (
+        "Roy i Manasmita – ukrywanie wiadomości w pliku DOCX\n\n"
+        "Kodowanie:\n"
+        "1. Wybierz plik DOCX (nośnik).\n"
+        "2. Wpisz wiadomość.\n"
+        "3. Kliknij „Zakoduj” i wskaż miejsce zapisu.\n\n"
+        "Dekodowanie:\n"
+        "Wybierz zakodowany plik DOCX i kliknij „Odkoduj”."
+    ),
+    "Spacje na końcu linii": (
+        "Spacje na końcu linii – ukrywanie wiadomości w pliku PDF\n\n"
+        "Kodowanie:\n"
+        "1. Wybierz plik PDF (nośnik).\n"
+        "2. Wpisz wiadomość.\n"
+        "3. Kliknij „Zakoduj” i wskaż miejsce zapisu.\n\n"
+        "Dekodowanie:\n"
+        "Wybierz zakodowany plik PDF i kliknij „Odkoduj”."
+    ),
+}
+
+
+class HelpIcon(tk.Label):
+    """Ikona PNG w rogu okna; po najechaniu pokazuje dymek z pomocą."""
+
+    def __init__(self, parent, image_path, get_text, max_size=28):
+        self._get_text = get_text
+        self._tip = None
+        self._img = None
+
+        try:
+            img = tk.PhotoImage(file=image_path)
+            factor = max(1, max(img.width(), img.height()) // max_size)
+            self._img = img.subsample(factor, factor) if factor > 1 else img
+            super().__init__(parent, image=self._img, cursor="question_arrow", bd=0)
+        except tk.TclError:
+            # brak pliku PNG -> awaryjnie zwykły znak zapytania
+            super().__init__(parent, text="?", cursor="question_arrow",
+                             font=("Segoe UI", 12, "bold"), width=2,
+                             relief="solid", bd=1)
+
+        self.bind("<Enter>", self._show)
+        self.bind("<Leave>", self._hide)
+
+    def _show(self, _event=None):
+        if self._tip:
+            return
+        self._tip = tw = tk.Toplevel(self)
+        tw.wm_overrideredirect(True)
+        tw.attributes("-topmost", True)
+        tk.Label(tw, text=self._get_text(), justify="left", anchor="w",
+                 background="#ffffe0", relief="solid", borderwidth=1,
+                 padx=10, pady=8).pack()
+        tw.update_idletasks()
+        # dymek wyrównany do prawej krawędzi ikony, tuż pod nią
+        x = self.winfo_rootx() + self.winfo_width() - tw.winfo_reqwidth()
+        y = self.winfo_rooty() + self.winfo_height() + 4
+        tw.wm_geometry(f"+{max(x, 0)}+{y}")
+
+    def _hide(self, _event=None):
+        if self._tip:
+            self._tip.destroy()
+            self._tip = None
+
+
 # ── Aplikacja ─────────────────────────────────────────────────────────────────
 
 class App(tk.Tk):
@@ -276,7 +355,7 @@ class App(tk.Tk):
         self.title("Steganografia")
         self.geometry("700x600")
 
-        notebook = ttk.Notebook(self)
+        self.notebook = notebook = ttk.Notebook(self)
         notebook.pack(fill="both", expand=True, padx=8, pady=8)
 
         METHODS = {
@@ -286,6 +365,16 @@ class App(tk.Tk):
         }
         for name, cls in METHODS.items():
             notebook.add(cls(notebook), text=name)
+
+        # ikona pomocy w prawym górnym rogu
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "help.png")
+        self.help_icon = HelpIcon(self, icon_path, self._current_help, max_size=24)
+        self.help_icon.place(relx=1.0, x=-12, y=10, anchor="ne")
+        self.help_icon.lift()
+
+    def _current_help(self):
+        name = self.notebook.tab(self.notebook.select(), "text")
+        return HELP_TEXTS.get(name, "Wybierz metodę i plik nośnika.")
 
 
 if __name__ == "__main__":
