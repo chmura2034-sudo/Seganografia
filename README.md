@@ -60,3 +60,18 @@ odbywa się z pliku DOCX, bez OCR. Edycja tekstu lub formatowania po zapisaniu
 może uszkodzić wiadomość. Metoda nie szyfruje ukrytych danych.
 
 Testy modułu: `python -m unittest discover -s tests -v`.
+
+
+
+
+
+Metoda wolnych spacji na końcu linii (PDF)
+----------------------
+ 
+Uruchom `python Main.py` i wybierz zakładkę „Spacje na końcu linii". W podzakładce „Kodowanie" wybierz plik PDF, wpisz wiadomość i wskaż nowy plik wynikowy. W podzakładce „Dekodowanie" wybierz zapisany plik, aby odczytać wiadomość. Oryginalny plik nie jest potrzebny do odczytu.
+ 
+Wykorzystywane są kolejne niepuste linie tekstu z warstwy tekstowej PDF-a, które posiadają wolne miejsce na końcu (tzn. odległość od ostatniego znaku do prawego marginesu tekstu wynosi co najmniej szerokość jednej spacji). Wiadomość kodowana jest binarnie: bit `1` oznacza dopisanie niewidocznej spacji za ostatnim znakiem linii, bit `0` pozostawia linię bez zmian. Linie bez wolnego miejsca są pomijane i nie zużywają żadnego bitu. Pojemność zależy od układu tekstu w dokumencie – im więcej linii kończy się przed prawym marginesem, tym więcej bitów można ukryć. Maksymalna długość wiadomości to 65 535 bajtów (nagłówek 16-bitowy przechowuje długość treści). Wiadomość może zawierać dowolne znaki Unicode kodowane w UTF-8.
+ 
+Dopisana spacja jest prawdziwym znakiem tekstowym osadzonym w warstwie PDF-a (fontem Helvetica), niewidocznym wizualnie, lecz obecnym przy zaznaczaniu i kopiowaniu tekstu. Dekoder identyfikuje bity wyłącznie po spacjach w foncie Helvetica, dzięki czemu metoda działa poprawnie również na dokumentach zawierających naturalne spacje łamiące wiersze (np. PDF-y generowane przez edytory tekstu), które są całkowicie ignorowane. Prawy margines tekstu wyznaczany jest automatycznie jako pozycja, przy której kończy się największa liczba linii na danej stronie.
+ 
+Oryginalny plik PDF pozostaje niezmieniony poza warstwą tekstową – układ strony, grafiki, tabele, kolory i czcionki są zachowane w całości. Metoda nie szyfruje ukrytych danych. Edycja, ponowny zapis w innym programie lub rasteryzacja pliku może usunąć dopisane spacje i uniemożliwić odczyt wiadomości. Przesunięcia nie są widoczne gołym okiem.
