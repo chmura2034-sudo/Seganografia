@@ -1,10 +1,9 @@
-
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
 import LSC
 import Roy
-
+import SOTE 
 
 
 class BaseSubTab(ttk.Frame):
@@ -63,6 +62,8 @@ class BaseSubTab(ttk.Frame):
         return carrier
 
 
+# ── LSC ───────────────────────────────────────────────────────────────────────
+
 class EncodeTab(BaseSubTab):
     def __init__(self, parent):
         super().__init__(parent)
@@ -119,6 +120,8 @@ class DecodeTab(BaseSubTab):
         except Exception as e:
             messagebox.showerror("Nieoczekiwany błąd", str(e))
 
+
+# ── Roy i Manasmita ───────────────────────────────────────────────────────────
 
 class DocxSubTab(BaseSubTab):
     def __init__(self, parent):
@@ -189,6 +192,63 @@ class RoyDecodeTab(DocxSubTab):
             messagebox.showerror("Nieoczekiwany błąd", str(e))
 
 
+
+
+class SOTEEncodeTab(BaseSubTab):
+    def __init__(self, parent):
+        super().__init__(parent)
+
+        ttk.Label(self, text="Wiadomość").grid(row=self._next(), column=0, sticky="w")
+        self.message = tk.Text(self, height=3, wrap="word")
+        self.message.grid(row=self._next(), column=0, sticky="ew", pady=(0, 8))
+
+        ttk.Button(self, text="Zakoduj", command=self.run).grid(
+            row=self._next(), column=0, sticky="w")
+        self.build_result()
+
+    def run(self):
+        carrier = self.get_carrier()
+        if carrier is None:
+            return
+        message = self.message.get("1.0", "end-1c")
+        if not message:
+            messagebox.showwarning("Brak wiadomości", "Wpisz wiadomość.")
+            return
+        out = filedialog.asksaveasfilename(
+            defaultextension=".pdf", filetypes=[("PDF", "*.pdf")])
+        if not out:
+            return
+        try:
+            SOTE.encode(carrier, message, out)
+            self.set_result(f"Zapisano: {out}")
+        except ValueError as e:
+            messagebox.showerror("Błąd", str(e))
+        except Exception as e:
+            messagebox.showerror("Nieoczekiwany błąd", str(e))
+
+
+class SOTEDecodeTab(BaseSubTab):
+    def __init__(self, parent):
+        super().__init__(parent)
+
+        ttk.Button(self, text="Odkoduj", command=self.run).grid(
+            row=self._next(), column=0, sticky="w")
+        self.build_result("Odczytana wiadomość")
+
+    def run(self):
+        carrier = self.get_carrier()
+        if carrier is None:
+            return
+        try:
+            self.set_result(SOTE.decode(carrier))
+        except ValueError as e:
+            messagebox.showerror("Błąd", str(e))
+        except Exception as e:
+            messagebox.showerror("Nieoczekiwany błąd", str(e))
+
+
+# ── Struktura zakładek ────────────────────────────────────────────────────────
+
 class MethodTab(ttk.Frame):
     def __init__(self, parent, encode_cls=EncodeTab, decode_cls=DecodeTab):
         super().__init__(parent)
@@ -203,6 +263,13 @@ class RoyMethodTab(MethodTab):
         super().__init__(parent, RoyEncodeTab, RoyDecodeTab)
 
 
+class SOTEMethodTab(MethodTab):
+    def __init__(self, parent):
+        super().__init__(parent, SOTEEncodeTab, SOTEDecodeTab)
+
+
+# ── Aplikacja ─────────────────────────────────────────────────────────────────
+
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -213,8 +280,9 @@ class App(tk.Tk):
         notebook.pack(fill="both", expand=True, padx=8, pady=8)
 
         METHODS = {
-            "LSC": MethodTab,
-            "Roy i Manasmita": RoyMethodTab,
+            "LSC":                  MethodTab,
+            "Roy i Manasmita":      RoyMethodTab,
+            "Spacje na końcu linii": SOTEMethodTab,
         }
         for name, cls in METHODS.items():
             notebook.add(cls(notebook), text=name)
