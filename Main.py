@@ -5,6 +5,7 @@ import os
 import LSC
 import Roy
 import SOTE 
+import Taha
 
 
 class BaseSubTab(ttk.Frame):
@@ -193,6 +194,77 @@ class RoyDecodeTab(DocxSubTab):
             messagebox.showerror("Nieoczekiwany błąd", str(e))
 
 
+# ── Taha, Hammad i Selim ─────────────────────────────────────────────────────
+
+class TextSubTab(BaseSubTab):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.carrier_label.configure(text="Nośnik (plik TXT UTF-8 z tekstem arabskim)")
+
+    def choose_carrier(self):
+        path = filedialog.askopenfilename(filetypes=[("Plik tekstowy UTF-8", "*.txt")])
+        if path:
+            self.carrier.delete(0, "end")
+            self.carrier.insert(0, path)
+
+    def get_carrier(self):
+        carrier = self.carrier.get().strip()
+        if not carrier:
+            messagebox.showwarning("Brak pliku", "Wybierz plik TXT UTF-8.")
+            return None
+        return carrier
+
+
+class TahaEncodeTab(TextSubTab):
+    def __init__(self, parent):
+        super().__init__(parent)
+        ttk.Label(self, text="Wiadomość").grid(row=self._next(), column=0, sticky="w")
+        self.message = tk.Text(self, height=3, wrap="word")
+        self.message.grid(row=self._next(), column=0, sticky="ew", pady=(0, 8))
+        ttk.Button(self, text="Zakoduj", command=self.run).grid(
+            row=self._next(), column=0, sticky="w")
+        self.build_result()
+
+    def run(self):
+        carrier = self.get_carrier()
+        if carrier is None:
+            return
+        message = self.message.get("1.0", "end-1c")
+        if not message:
+            messagebox.showwarning("Brak wiadomości", "Wpisz wiadomość.")
+            return
+        out = filedialog.asksaveasfilename(
+            defaultextension=".txt", filetypes=[("Plik tekstowy UTF-8", "*.txt")])
+        if not out:
+            return
+        try:
+            Taha.encode(carrier, message, out)
+            self.set_result(f"Zapisano: {out}")
+        except ValueError as e:
+            messagebox.showerror("Błąd", str(e))
+        except Exception as e:
+            messagebox.showerror("Nieoczekiwany błąd", str(e))
+
+
+class TahaDecodeTab(TextSubTab):
+    def __init__(self, parent):
+        super().__init__(parent)
+        ttk.Button(self, text="Odkoduj", command=self.run).grid(
+            row=self._next(), column=0, sticky="w")
+        self.build_result("Odczytana wiadomość")
+
+    def run(self):
+        carrier = self.get_carrier()
+        if carrier is None:
+            return
+        try:
+            self.set_result(Taha.decode(carrier))
+        except ValueError as e:
+            messagebox.showerror("Błąd", str(e))
+        except Exception as e:
+            messagebox.showerror("Nieoczekiwany błąd", str(e))
+
+
 
 
 class SOTEEncodeTab(BaseSubTab):
@@ -269,6 +341,11 @@ class SOTEMethodTab(MethodTab):
         super().__init__(parent, SOTEEncodeTab, SOTEDecodeTab)
 
 
+class TahaMethodTab(MethodTab):
+    def __init__(self, parent):
+        super().__init__(parent, TahaEncodeTab, TahaDecodeTab)
+
+
 # ── Pomoc (ikona + dymek) ─────────────────────────────────────────────────────
 
 HELP_TEXTS = {
@@ -300,6 +377,17 @@ HELP_TEXTS = {
         "3. Kliknij „Zakoduj” i wskaż miejsce zapisu.\n\n"
         "Dekodowanie:\n"
         "Wybierz zakodowany plik PDF i kliknij „Odkoduj”."
+    ),
+    "Taha, Hammad i Selim": (
+        "Taha, Hammad i Selim – arabski tekst UTF-8\n\n"
+        "Kodowanie:\n"
+        "1. Wybierz plik TXT UTF-8 zawierający tekst arabski.\n"
+        "2. Wpisz wiadomość.\n"
+        "3. Kliknij „Zakoduj” i wskaż plik wynikowy.\n\n"
+        "Algorytm zapisuje bity przez Kashidę oraz trzy małe\n"
+        "spacje Unicode między arabskimi wyrazami.\n\n"
+        "Dekodowanie:\n"
+        "Wybierz zakodowany plik TXT i kliknij „Odkoduj”."
     ),
 }
 
@@ -362,6 +450,7 @@ class App(tk.Tk):
             "LSC":                  MethodTab,
             "Roy i Manasmita":      RoyMethodTab,
             "Spacje na końcu linii": SOTEMethodTab,
+            "Taha, Hammad i Selim": TahaMethodTab,
         }
         for name, cls in METHODS.items():
             notebook.add(cls(notebook), text=name)

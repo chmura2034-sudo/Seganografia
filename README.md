@@ -75,3 +75,15 @@ Wykorzystywane są kolejne niepuste linie tekstu z warstwy tekstowej PDF-a, któ
 Dopisana spacja jest prawdziwym znakiem tekstowym osadzonym w warstwie PDF-a (fontem Helvetica), niewidocznym wizualnie, lecz obecnym przy zaznaczaniu i kopiowaniu tekstu. Dekoder identyfikuje bity wyłącznie po spacjach w foncie Helvetica, dzięki czemu metoda działa poprawnie również na dokumentach zawierających naturalne spacje łamiące wiersze (np. PDF-y generowane przez edytory tekstu), które są całkowicie ignorowane. Prawy margines tekstu wyznaczany jest automatycznie jako pozycja, przy której kończy się największa liczba linii na danej stronie.
  
 Oryginalny plik PDF pozostaje niezmieniony poza warstwą tekstową – układ strony, grafiki, tabele, kolory i czcionki są zachowane w całości. Metoda nie szyfruje ukrytych danych. Edycja, ponowny zapis w innym programie lub rasteryzacja pliku może usunąć dopisane spacje i uniemożliwić odczyt wiadomości. Przesunięcia nie są widoczne gołym okiem.
+
+
+Metoda Taha, Hammad i Selim (arabski TXT)
+------------------------------------------
+
+Uruchom `python Main.py` i wybierz zakładkę „Taha, Hammad i Selim”. W podzakładce „Kodowanie” wybierz plik TXT zapisany w UTF-8, zawierający arabski tekst, wpisz wiadomość i wskaż plik wynikowy. W „Dekodowaniu” wybierz plik wynikowy, aby odczytać wiadomość.
+
+Implementacja opiera się na artykule [A high capacity algorithm for information hiding in Arabic text](https://doi.org/10.1016/j.jksuci.2018.07.007). Po literze arabskiej, do której może zostać dołączona Kashida (`U+0640`), ukrywany jest jeden bit: Kashida oznacza `1`, jej brak `0`. Po zwykłej spacji między arabskimi wyrazami ukrywane są trzy bity w kolejności: Thin space (`U+2009`), Hair space (`U+200A`) i Six-per-em space (`U+2006`). Nośnik nie może zawierać tych czterech znaków przed kodowaniem.
+
+Do bitów wiadomości program dodaje własny 12-bajtowy nagłówek z sygnaturą, długością i CRC32. Dzięki temu dekoder zna koniec wiadomości i wykrywa modyfikację tekstu; sam sposób rozmieszczania bitów pozostaje zgodny z algorytmem artykułu. Wiadomość jest kodowana w UTF-8. Zmiana tekstu, normalizacja znaków Unicode lub zapis w programie, który usuwa małe spacje, może uniemożliwić odczyt. Metoda nie szyfruje danych.
+
+Testy modułu: `python -m unittest tests/test_taha.py -v`.
