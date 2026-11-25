@@ -87,3 +87,17 @@ Implementacja opiera się na artykule [A high capacity algorithm for information
 Do bitów wiadomości program dodaje własny 12-bajtowy nagłówek z sygnaturą, długością i CRC32. Dzięki temu dekoder zna koniec wiadomości i wykrywa modyfikację tekstu; sam sposób rozmieszczania bitów pozostaje zgodny z algorytmem artykułu. Wiadomość jest kodowana w UTF-8. Zmiana tekstu, normalizacja znaków Unicode lub zapis w programie, który usuwa małe spacje, może uniemożliwić odczyt. Metoda nie szyfruje danych.
 
 Testy modułu: `python -m unittest tests/test_taha.py -v`.
+
+### Metoda Kornel i Radek: przesunięcie linii i spacje (DOCX)
+
+Uruchom `python Main.py` i wybierz zakładkę „Kornel i Radek”. W podzakładce „Kodowanie” wybierz plik DOCX i wpisz wiadomość. Następnie wybierz liczbę bitów przesunięcia linii (od `1` do `4`, domyślnie `3`) i wskaż nowy plik wynikowy. Licznik pod polem wiadomości pokazuje jej długość i pojemność nośnika w bajtach, a za długa wiadomość zostaje odrzucona przed zapisem. W podzakładce „Dekodowanie” wybierz zapisany plik i ustaw tę samą liczbę bitów, aby odczytać wiadomość. Oryginalny plik nie jest potrzebny do odczytu.
+
+Wykorzystywane są kolejne niepuste akapity dokumentu, także w tabelach. Każdy akapit niesie bity w trzech kanałach, zawsze w tej samej kolejności:
+
+- **Przesunięcie linii:** cały akapit jest przesuwany w pionie przez właściwość Worda „położenie” (`w:position`). `k` bitów wybiera jeden z 2^k poziomów z pominięciem zera, np. dla `k = 3` od −2 pt do +2 pt co 0,5 pt.
+- **Spacje między słowami:** każda spacja przed ostatnim słowem akapitu to jeden bit. Zwykła spacja (U+0020) oznacza `0`, a wąska spacja (U+2009) oznacza `1`.
+- **Spacje końcowe:** oryginalne spacje końcowe są usuwane, a na ich miejsce trafia `TRAIL = 8` nowych, kodowanych tak samo jak spacje między słowami.
+
+Strumień zaczyna się 16-bitową sygnaturą „KR” i 32-bitową długością wiadomości. Wiadomość jest zapisywana w UTF-8, więc może zawierać polskie znaki i emoji. Akapit daje `k + S + 8` bitów, gdzie `S` to liczba spacji między jego słowami. Przykładowo 40 krótkich akapitów mieści około 116 B przy `k = 3`. Nieużyte akapity pozostają bez zmian. Tekst, formatowanie, układ strony, grafiki i tabele są zachowane.
+
+Przy odczycie dekoder dopasowuje przesunięcie każdego akapitu do najbliższego poziomu i czyta rodzaj każdej spacji. Brak sygnatury oznacza brak wiadomości albo inną liczbę bitów niż przy kodowaniu. Plik przetrwa ponowne zapisanie w LibreOffice. Edycja tekstu, autokorekta, „Znajdź i zamień” na spacjach albo eksport do PDF lub TXT może uszkodzić wiadomość. Przesunięcie ±0,5 pt jest praktycznie niewidoczne, ale od `k = 3` nierówne odstępy można zauważyć. Spacje końcowe widać po włączeniu znaków formatowania (¶). Metoda nie szyfruje ukrytych danych.
