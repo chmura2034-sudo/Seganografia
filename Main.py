@@ -6,7 +6,7 @@ import LSC
 import Roy
 import SOTE 
 import Taha
-
+import Kornel_I_Radek as KornelRadek
 
 class BaseSubTab(ttk.Frame):
     """Wspólne elementy: wybór nośnika, tryb przesunięcia, wynik."""
@@ -319,6 +319,161 @@ class SOTEDecodeTab(BaseSubTab):
         except Exception as e:
             messagebox.showerror("Nieoczekiwany błąd", str(e))
 
+# ── Kornel i Radek ────────────────────────────────────────────────────────────
+
+class KRSubTab(BaseSubTab):
+    FILETYPES = [("Word", "*.docx")]
+    EXT = ".docx"
+    TYPE_NAME = "DOCX"
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.carrier_label.configure(text=f"Nośnik (plik {self.TYPE_NAME})")
+
+    def choose_carrier(self):
+        path = filedialog.askopenfilename(filetypes=self.FILETYPES)
+        if path:
+            self.carrier.delete(0, "end")
+            self.carrier.insert(0, path)
+
+    def get_carrier(self):
+        carrier = self.carrier.get().strip()
+        if not carrier:
+            messagebox.showwarning("Brak pliku", f"Wybierz plik {self.TYPE_NAME}.")
+            return None
+        return carrier
+
+    def build_shift_bits(self):
+        frame = ttk.Frame(self)
+        frame.grid(row=self._next(), column=0, sticky="w", pady=(0, 8))
+        ttk.Label(frame, text="Bity przesunięcia linii:").pack(side="left")
+        self.shift_bits = ttk.Combobox(frame, values=[1, 2, 3, 4], width=3,
+                                       state="readonly")
+        self.shift_bits.set(3)
+        self.shift_bits.pack(side="left", padx=6)
+
+
+class KREncodeTab(KRSubTab):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self._cap_key = None
+        self._cap = None
+
+        ttk.Label(self, text="Wiadomość").grid(row=self._next(), column=0, sticky="w")
+        self.message = tk.Text(self, height=3, wrap="word")
+        self.message.grid(row=self._next(), column=0, sticky="ew")
+
+        # licznik: długość wiadomości / pojemność nośnika
+        self.info = ttk.Label(self, text="")
+        self.info.grid(row=self._next(), column=0, sticky="w", pady=(2, 8))
+
+        self.build_shift_bits()
+        ttk.Button(self, text="Zakoduj", command=self.run).grid(
+            row=self._next(), column=0, sticky="w")
+        self.build_result()
+
+        # odświeżanie licznika
+        self.message.bind("<<Modified>>", self._on_message_change)
+        self.shift_bits.bind("<<ComboboxSelected>>", self.update_info)
+        self.carrier.bind("<KeyRelease>", self.update_info)
+        self.carrier.bind("<FocusOut>", self.update_info)
+        self.update_info()
+
+    def choose_carrier(self):
+        super().choose_carrier()
+        self.update_info()
+
+    def _on_message_change(self, _event=None):
+        self.message.edit_modified(False)
+        self.update_info()
+
+    def _message_bytes(self):
+        return len(self.message.get("1.0", "end-1c").encode("utf-8"))
+
+    def _capacity(self):
+        """Pojemność nośnika w bajtach (zapamiętywana) lub None."""
+        path = self.carrier.get().strip()
+        if not path or not os.path.isfile(path):
+            return None
+        key = (path, os.path.getmtime(path), int(self.shift_bits.get()))
+        if key != self._cap_key:
+            try:
+                self._cap = KornelRadek.capacity(path, key[2])
+            except Exception:
+                self._cap = None
+            self._cap_key = key
+        return self._cap
+
+    def update_info(self, _event=None):
+        length = self._message_bytes()
+        cap = self._capacity()
+        if cap is None:
+            self.info.configure(text=f"Długość wiadomości: {length} B",
+                                foreground="")
+        else:
+            too_long = length > cap
+            self.info.configure(
+                text=f"Długość wiadomości: {length} B / pojemność nośnika: {cap} B"
+                     + ("  – za długa!" if too_long else ""),
+                foreground="red" if too_long else "")
+
+    def run(self):
+        carrier = self.get_carrier()
+        if carrier is None:
+            return
+        message = self.message.get("1.0", "end-1c")
+        if not message:
+            messagebox.showwarning("Brak wiadomości", "Wpisz wiadomość.")
+            return
+
+        # sprawdzenie długości przed wyborem pliku wynikowego
+        length = len(message.encode("utf-8"))
+        cap = self._capacity()
+        if cap is None:
+            messagebox.showerror("Błąd", "Nie można odczytać pliku nośnika "
+                                         "(czy to poprawny plik DOCX?).")
+            return
+        if length > cap:
+            messagebox.showerror(
+                "Za długa wiadomość",
+                f"Wiadomość ma {length} B, a nośnik pomieści najwyżej {cap} B.\n\n"
+                f"Skróć wiadomość, wybierz dłuższy dokument "
+                f"lub zwiększ liczbę bitów przesunięcia.")
+            return
+
+        out = filedialog.asksaveasfilename(
+            defaultextension=self.EXT, filetypes=self.FILETYPES)
+        if not out:
+            return
+        try:
+            KornelRadek.encode(carrier, message, out, int(self.shift_bits.get()))
+            self.set_result(f"Zapisano: {out}\n"
+                            f"Ukryto {length} B z {cap} B dostępnych.")
+        except ValueError as e:
+            messagebox.showerror("Błąd", str(e))
+        except Exception as e:
+            messagebox.showerror("Nieoczekiwany błąd", str(e))
+
+
+class KRDecodeTab(KRSubTab):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.build_shift_bits()
+        ttk.Button(self, text="Odkoduj", command=self.run).grid(
+            row=self._next(), column=0, sticky="w")
+        self.build_result("Odczytana wiadomość")
+
+    def run(self):
+        carrier = self.get_carrier()
+        if carrier is None:
+            return
+        try:
+            secret = KornelRadek.decode(carrier, int(self.shift_bits.get()))
+            self.set_result(secret)
+        except ValueError as e:
+            messagebox.showerror("Błąd", str(e))
+        except Exception as e:
+            messagebox.showerror("Nieoczekiwany błąd", str(e))
 
 # ── Struktura zakładek ────────────────────────────────────────────────────────
 
@@ -345,6 +500,9 @@ class TahaMethodTab(MethodTab):
     def __init__(self, parent):
         super().__init__(parent, TahaEncodeTab, TahaDecodeTab)
 
+class KRMethodTab(MethodTab):
+    def __init__(self, parent):
+        super().__init__(parent, KREncodeTab, KRDecodeTab)
 
 # ── Pomoc (ikona + dymek) ─────────────────────────────────────────────────────
 
@@ -388,6 +546,19 @@ HELP_TEXTS = {
         "spacje Unicode między arabskimi wyrazami.\n\n"
         "Dekodowanie:\n"
         "Wybierz zakodowany plik TXT i kliknij „Odkoduj”."
+    ),
+        "Kornel i Radek": (
+        "Kornel i Radek – ukrywanie wiadomości w pliku DOCX\n\n"
+        "Kodowanie:\n"
+        "1. Wybierz plik DOCX (nośnik).\n"
+        "2. Wpisz wiadomość.\n"
+        "3. Wybierz liczbę bitów przesunięcia linii (1–4).\n"
+        "4. Kliknij „Zakoduj” i wskaż miejsce zapisu.\n\n"
+        "Bity są zapisywane przez przesunięcie linii w górę/dół,\n"
+        "wąskie spacje między słowami oraz spacje na końcu linii.\n\n"
+        "Dekodowanie:\n"
+        "Wybierz zakodowany plik DOCX, ustaw tę samą liczbę bitów\n"
+        "przesunięcia co przy kodowaniu i kliknij „Odkoduj”."
     ),
 }
 
@@ -441,7 +612,7 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Steganografia")
-        self.geometry("700x600")
+        self.geometry("820x600")
 
         self.notebook = notebook = ttk.Notebook(self)
         notebook.pack(fill="both", expand=True, padx=8, pady=8)
@@ -451,6 +622,7 @@ class App(tk.Tk):
             "Roy i Manasmita":      RoyMethodTab,
             "Spacje na końcu linii": SOTEMethodTab,
             "Taha, Hammad i Selim": TahaMethodTab,
+            "Kornel i Radek":        KRMethodTab,
         }
         for name, cls in METHODS.items():
             notebook.add(cls(notebook), text=name)
