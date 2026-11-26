@@ -88,6 +88,29 @@ Do bitów wiadomości program dodaje własny 12-bajtowy nagłówek z sygnaturą,
 
 Testy modułu: `python -m unittest tests/test_taha.py -v`.
 
+### Metoda Brassila i współautorów: różnicowe przesunięcia linii (PDF)
+
+Jest to piąty algorytm z listy literatury, zaimplementowany na podstawie pracy
+*Electronic Marking and Identification Techniques to Discourage Document
+Copying*. W aplikacji zakładka „Brassil i in.” znajduje się bezpośrednio przed
+„Kornel i Radek”.
+
+W każdej stronie pierwsza, trzecia, piąta itd. linia pozostaje nieruchomą
+kotwicą. Linie pomiędzy dwiema kotwicami są przesuwane o 1,5 punktu: w górę
+dla bitu `1`, a w dół dla bitu `0`. Dekoder porównuje położenie linii nośnej ze
+środkiem pomiędzy sąsiednimi kotwicami, dlatego nie potrzebuje oryginalnego
+pliku. Strumień zawiera sygnaturę, długość danych i CRC32; wiadomość jest
+kodowana w UTF-8.
+
+Implementacja rekonstruuje tekstową warstwę PDF, zachowując rozmiar i liczbę
+stron, pozycje tekstu, przybliżony krój i kolor czcionki. Nie zachowuje obrazów,
+tabel jako obiektów, hiperłączy ani innych elementów nietekstowych. Dokument
+musi mieć co najmniej 80 linii nośnych na sam nagłówek. Pojemność można
+sprawdzić funkcją `Brassil.capacity(path)`. Ponowny skład, edycja albo
+rasteryzacja PDF może zniszczyć wiadomość. Metoda nie szyfruje danych.
+
+Testy modułu: `python -m unittest tests/test_brassil.py -v`.
+
 ### Metoda Kornel i Radek: przesunięcie linii i spacje (DOCX)
 
 Uruchom `python Main.py` i wybierz zakładkę „Kornel i Radek”. W podzakładce „Kodowanie” wybierz plik DOCX i wpisz wiadomość. Następnie wybierz liczbę bitów przesunięcia linii (od `1` do `4`, domyślnie `3`) i wskaż nowy plik wynikowy. Licznik pod polem wiadomości pokazuje jej długość i pojemność nośnika w bajtach, a za długa wiadomość zostaje odrzucona przed zapisem. W podzakładce „Dekodowanie” wybierz zapisany plik i ustaw tę samą liczbę bitów, aby odczytać wiadomość. Oryginalny plik nie jest potrzebny do odczytu.
