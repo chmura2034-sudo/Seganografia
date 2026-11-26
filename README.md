@@ -88,28 +88,26 @@ Do bitów wiadomości program dodaje własny 12-bajtowy nagłówek z sygnaturą,
 
 Testy modułu: `python -m unittest tests/test_taha.py -v`.
 
-### Metoda Brassila i współautorów: różnicowe przesunięcia linii (PDF)
+### Metoda Brassila i współautorów: Feature Coding (PDF)
 
 Jest to piąty algorytm z listy literatury, zaimplementowany na podstawie pracy
 *Electronic Marking and Identification Techniques to Discourage Document
 Copying*. W aplikacji zakładka „Brassil i in.” znajduje się bezpośrednio przed
 „Kornel i Radek”.
 
-W każdej stronie pierwsza, trzecia, piąta itd. linia pozostaje nieruchomą
-kotwicą. Linie pomiędzy dwiema kotwicami są przesuwane o 1,5 punktu: w górę
-dla bitu `1`, a w dół dla bitu `0`. Dekoder porównuje położenie linii nośnej ze
-środkiem pomiędzy sąsiednimi kotwicami, dlatego nie potrzebuje oryginalnego
-pliku. Strumień zawiera sygnaturę, długość danych i CRC32; wiadomość jest
-kodowana w UTF-8.
+PDF jest rasteryzowany w rozdzielczości 300 DPI. Każda mała litera `b`, `d`
+lub `h`, dla której program potrafi znaleźć pionową górną kreskę, przenosi jeden
+bit. Dla bitu `1` kreska zostaje wydłużona do góry o dwa piksele, a dla bitu
+`0` pozostaje niezmieniona. Wynik jest zapisywany jako rastrowy PDF z użyciem
+bezstratnych obrazów RGB. Zachowany zostaje wygląd całej strony, w tym grafiki,
+ale tekst w pliku wynikowym nie jest już zaznaczalny.
 
-Implementacja rekonstruuje tekstową warstwę PDF, zachowując rozmiar i liczbę
-stron, pozycje tekstu, przybliżony krój i kolor czcionki. Nie zachowuje obrazów,
-tabel jako obiektów, hiperłączy ani innych elementów nietekstowych. Dokument
-musi mieć co najmniej 80 linii nośnych na sam nagłówek. Pojemność można
-sprawdzić funkcją `Brassil.capacity(path)`. Ponowny skład, edycja albo
-rasteryzacja PDF może zniszczyć wiadomość. Metoda nie szyfruje danych.
-
-Testy modułu: `python -m unittest tests/test_brassil.py -v`.
+Zgodnie z opisem Feature Coding w publikacji dekodowanie wymaga zarówno
+oryginalnego, jak i zakodowanego PDF. Program ponownie renderuje oba dokumenty
+i porównuje piksele nad wybranymi zakończeniami znaków. Strumień zawiera
+sygnaturę, długość danych i CRC32, a wiadomość jest kodowana w UTF-8. Sam
+nagłówek wymaga co najmniej 80 odpowiednich liter. Pojemność można sprawdzić
+funkcją `Brassil.capacity(path)`. Metoda nie szyfruje danych.
 
 ### Metoda Kornel i Radek: przesunięcie linii i spacje (DOCX)
 

@@ -536,16 +536,36 @@ class BrassilEncodeTab(BaseSubTab):
 class BrassilDecodeTab(BaseSubTab):
     def __init__(self, parent):
         super().__init__(parent)
+        self.carrier_label.configure(text="Oryginalny plik PDF")
+        ttk.Label(self, text="Zakodowany plik PDF").grid(
+            row=self._next(), column=0, sticky="w")
+        path_frame = ttk.Frame(self)
+        path_frame.grid(row=self._next(), column=0, sticky="ew", pady=(0, 8))
+        path_frame.columnconfigure(0, weight=1)
+        self.marked = ttk.Entry(path_frame)
+        self.marked.grid(row=0, column=0, sticky="ew")
+        ttk.Button(path_frame, text="Wybierz…", command=self.choose_marked).grid(
+            row=0, column=1, padx=(6, 0))
         ttk.Button(self, text="Odkoduj", command=self.run).grid(
             row=self._next(), column=0, sticky="w")
         self.build_result("Odczytana wiadomość")
 
+    def choose_marked(self):
+        path = filedialog.askopenfilename(filetypes=[("PDF", "*.pdf")])
+        if path:
+            self.marked.delete(0, "end")
+            self.marked.insert(0, path)
+
     def run(self):
-        carrier = self.get_carrier()
-        if carrier is None:
+        original = self.get_carrier()
+        if original is None:
+            return
+        marked = self.marked.get().strip()
+        if not marked:
+            messagebox.showwarning("Brak pliku", "Wybierz zakodowany plik PDF.")
             return
         try:
-            self.set_result(Brassil.decode(carrier))
+            self.set_result(Brassil.decode(original, marked))
         except ValueError as e:
             messagebox.showerror("Błąd", str(e))
         except Exception as e:
@@ -604,14 +624,14 @@ HELP_TEXTS = {
         "Wybierz zakodowany plik TXT i kliknij „Odkoduj”."
     ),
     "Brassil i in.": (
-        "Brassil i in. – różnicowe przesuwanie linii PDF\n\n"
+        "Brassil i in. – wydłużanie cech znaków PDF\n\n"
         "Kodowanie:\n"
         "1. Wybierz tekstowy plik PDF.\n"
         "2. Wpisz wiadomość UTF-8.\n"
         "3. Kliknij „Zakoduj” i wskaż plik wynikowy.\n\n"
-        "Co druga linia pozostaje kotwicą, a linia pomiędzy\n"
-        "kotwicami jest przesuwana w górę (1) lub w dół (0).\n\n"
-        "Dekodowanie nie wymaga oryginalnego dokumentu."
+        "Bit 1 wydłuża o 2 piksele górną pionową kreskę liter\n"
+        "b, d lub h; bit 0 pozostawia ją bez zmian.\n\n"
+        "Dekodowanie wymaga oryginalnego i zakodowanego PDF."
     ),
         "Kornel i Radek": (
         "Kornel i Radek – ukrywanie wiadomości w pliku DOCX\n\n"
